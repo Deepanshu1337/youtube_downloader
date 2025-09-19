@@ -1,132 +1,151 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Download, Play, Clock, Eye, AlertCircle, CheckCircle } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Download, Play, Clock, Eye, AlertCircle, CheckCircle } from "lucide-react";
+
+// Determine the API base URL. In production (non-localhost), default to the Render backend.
+// You can override with NEXT_PUBLIC_API_BASE if needed.
+const getApiBase = (): string => {
+  if (process.env.NEXT_PUBLIC_API_BASE) {
+    return process.env.NEXT_PUBLIC_API_BASE.replace(/\/$/, "")
+  }
+  if (typeof window !== "undefined") {
+    const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    return isLocal ? "http://localhost:8000" : "https://youtube-downloader-backend-efg0.onrender.com"
+  }
+  return "https://youtube-downloader-backend-efg0.onrender.com"
+}
+
+
 
 interface VideoInfo {
-  title: string
-  thumbnail: string
-  duration: string
-  views: string
-  channel: string
-  videoId: string
+  title: string;
+  thumbnail: string;
+  duration: string;
+  views: string;
+  channel: string;
+  videoId: string;
   formats: Array<{
-    quality: string
-    format: string
-    size?: string
-    format_id?: string
-    filesize?: number
-  }>
-  is_live?: boolean
+    quality: string;
+    format: string;
+    size?: string;
+    format_id?: string;
+    filesize?: number;
+  }>;
+  is_live?: boolean;
 }
 
 export default function YouTubeDownloader() {
-  const [url, setUrl] = useState("")
-  const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isDownloading, setIsDownloading] = useState(false)
-  const [selectedQuality, setSelectedQuality] = useState("720p")
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [url, setUrl] = useState("");
+  const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [selectedQuality, setSelectedQuality] = useState("720p");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!url.trim()) return
+    e.preventDefault();
+    if (!url.trim()) return;
 
-    setIsLoading(true)
-    setError(null)
-    setSuccess(null)
-    setVideoInfo(null)
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+    setVideoInfo(null);
 
     try {
-      const response = await fetch("/api/video-info", {
+      const base = getApiBase();
+      const endpoint = `${base}/video-info`; // Always hit backend
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch video information")
+        throw new Error(data.error || "Failed to fetch video information");
       }
 
       if (!data.success) {
-        throw new Error(data.error || "Failed to fetch video information")
+        throw new Error(data.error || "Failed to fetch video information");
       }
 
-      setVideoInfo(data)
-      setSuccess("Video information loaded successfully!")
+      setVideoInfo(data);
+      setSuccess("Video information loaded successfully!");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleDownload = async () => {
-    if (!videoInfo) return
+    if (!videoInfo) return;
 
-    setIsDownloading(true)
-    setError(null)
-    setSuccess(null)
+    setIsDownloading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
-      const selectedFormat = videoInfo.formats.find((f) => f.quality === selectedQuality)
-      const format = selectedFormat?.format || "mp4"
+      const selectedFormat = videoInfo.formats.find((f) => f.quality === selectedQuality);
+      const format = selectedFormat?.format || "mp4";
 
-      const response = await fetch("/api/download", {
+      const base = getApiBase();
+      const endpoint = `${base}/download`; // Always hit backend
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url: url, // Use original URL instead of videoId
+          url, // use original YouTube URL
           quality: selectedQuality,
           format,
         }),
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to download video")
+        throw new Error(data.error || "Failed to download video");
       }
 
       if (!data.success) {
-        throw new Error(data.error || "Failed to download video")
+        throw new Error(data.error || "Failed to download video");
       }
 
-      setSuccess(`Download starting...`)
+      setSuccess(`Download starting...`);
 
       // Trigger download using a hidden iframe to avoid opening a new tab
       if (data.downloadUrl) {
-        const iframe = document.createElement('iframe')
-        iframe.style.display = 'none'
-        iframe.src = data.downloadUrl
-        document.body.appendChild(iframe)
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.src = data.downloadUrl;
+        document.body.appendChild(iframe);
 
         // Cleanup after some time
         setTimeout(() => {
-          if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe)
-          setSuccess(`Download started! Check your downloads folder for: ${data.filename}`)
-        }, 5000)
+          if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
+          setSuccess(`Download started! Check your downloads folder for: ${data.filename}`);
+        }, 5000);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download failed")
+      setError(err instanceof Error ? err.message : "Download failed");
     } finally {
-      setIsDownloading(false)
+      setIsDownloading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -227,7 +246,7 @@ export default function YouTubeDownloader() {
                       alt="Video thumbnail"
                       className="w-full rounded-lg"
                       onError={(e) => {
-                        e.currentTarget.src = "/video-thumbnail.png"
+                        e.currentTarget.src = "/video-thumbnail.png";
                       }}
                     />
                     <div>
@@ -361,5 +380,5 @@ export default function YouTubeDownloader() {
         </div>
       </footer>
     </div>
-  )
+  );
 }
